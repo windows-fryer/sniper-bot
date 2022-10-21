@@ -1,30 +1,28 @@
-import { enableAmethystPlugin, enableCachePlugin, createBot, base64Decode, Intents, startBot } from "../deps.ts";
-import { textDecode } from "./helpers/helpers.ts";
+import { startBot } from "../deps.ts";
+import { botAmethyst, botClient } from "./deps.ts";
 
-const config = JSON.parse(Deno.readTextFileSync("../"));
+const working = "./project/bot/";
 
-export const botClient = createBot({
-    token: textDecode(base64Decode(config["DISCORD_TOKEN"])),
-    intents: Intents.GuildMessages | Intents.Guilds,
-});
-
-export const botCache = enableCachePlugin(botClient);
-export const botAmethyst = enableAmethystPlugin(botCache);
-
-for (const event of Deno.readDirSync("./events/")) {
+for (const event of Deno.readDirSync(`${working}events/`)) {
     if (event.isDirectory) {
         const eventImport = await import(`./events/${event.name}/event.ts`);
 
         botAmethyst.on(event.name, eventImport.callback);
+
+        console.log(`Loaded event: ${event.name}`);
     }
 }
 
-for (const command of Deno.readDirSync("./commands/")) {
+for (const command of Deno.readDirSync(`${working}commands/`)) {
     if (command.isDirectory) {
         const commandImport = await import(`./commands/${command.name}/command.ts`);
 
         botAmethyst.amethystUtils.createCommand(commandImport.options);
+
+        console.log(`Loaded command: ${command.name}`);
     }
 }
 
 startBot(botClient);
+
+botAmethyst.amethystUtils.updateSlashCommands();
