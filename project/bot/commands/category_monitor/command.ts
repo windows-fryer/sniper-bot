@@ -1,5 +1,5 @@
 import { AmethystEmbed, ApplicationCommandFlags, CommandOptions, InteractionResponseTypes } from "../../../deps.ts";
-import { readDatabase, writeDatabase } from "../../helpers/helpers.ts";
+import { readDatabase, writeDatabase, twitchGetCategory } from "../../helpers/helpers.ts";
 
 export const options: CommandOptions = {
     name: "monitor",
@@ -33,10 +33,31 @@ export const options: CommandOptions = {
         const embed = new AmethystEmbed();
         const memberValue = await readDatabase(context.interaction.guildId!.toString(), "monitoredCategories");
 
+        const foundCategory = await twitchGetCategory(options[0].value! as string);
+
+        if (!foundCategory) {
+            embed.setColor("#FF0000");
+            embed.setDescription("Category not found.");
+            embed.setTitle("Error");
+            embed.setTimestamp();
+
+            await bot.helpers.sendInteractionResponse(context.interaction.id!, context.interaction.token!, {
+                type: InteractionResponseTypes.ChannelMessageWithSource,
+                data: {
+                    flags: ApplicationCommandFlags.Ephemeral,
+                    embeds: [
+                        embed
+                    ]
+                }
+            });
+
+            return;
+        }
+
         if (memberValue) {
             const memberJSON = JSON.parse(memberValue);
 
-            if (memberJSON[options[0].value! as string]) {
+            if (memberJSON[foundCategory["name"]]) {
                 embed.setColor("#FF0000");
                 embed.setDescription("This category is already being monitored!");
                 embed.setTitle("Error");
@@ -58,20 +79,21 @@ export const options: CommandOptions = {
         
         if (!memberValue) {
             const memberJSON = {
-                [options[0].value! as string]: true
+                [foundCategory["name"]]: foundCategory["id"]
             };
 
             await writeDatabase(context.interaction.guildId!.toString(), "monitoredCategories", JSON.stringify(memberJSON));
         } else {
             const memberJSON = JSON.parse(memberValue);
 
-            memberJSON[options[0].value! as string] = true;
+            memberJSON[foundCategory["name"]] = foundCategory["id"];
 
             await writeDatabase(context.interaction.guildId!.toString(), "monitoredCategories", JSON.stringify(memberJSON));
         }
 
         embed.setColor("#C773FF");
-        embed.setDescription(`Sucessfully started monitoring \`${options[0].value}\`!`);
+        embed.setDescription(`Sucessfully started monitoring \`${foundCategory["name"]}\`!`);
+        embed.setThumbnail(foundCategory["box_art_url"]);
         embed.setTitle("Success");
         embed.setTimestamp();
 

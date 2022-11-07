@@ -88,7 +88,7 @@ export const twitchTimeoutCheck = async () => {
 export const twitchGetStreamers = async (streamers: string[]) => {
     await twitchTimeoutCheck();
 
-    const streamersOnline: string[] = [];
+    const streamersOnline: any[] = [];
     let cursorPosition = "";
 
     let response = await fetch(`https://api.twitch.tv/helix/streams?first=10&user_login=${streamers.join("&user_login=")}`, {
@@ -106,8 +106,8 @@ export const twitchGetStreamers = async (streamers: string[]) => {
         }
 
         json["data"].forEach((stream: any) => {
-            if (streamers.includes(stream["user_login"]) && stream["type"] == "live" && !streamersOnline.includes(stream["user_login"])) {
-                streamersOnline.push(stream["user_login"]);
+            if (streamers.includes(stream["user_name"]) && stream["type"] == "live" && !streamersOnline.includes(stream)) {
+                streamersOnline.push(stream);
             }
         });
     }
@@ -128,13 +128,17 @@ export const twitchGetStreamers = async (streamers: string[]) => {
             }
 
             json["data"].forEach((stream: any) => {
-                if (streamers.includes(stream["user_login"]) && stream["type"] == "live" && !streamersOnline.includes(stream["user_login"])) {
-                    streamersOnline.push(stream["user_login"]);
+                if (streamers.includes(stream["user_name"]) && stream["type"] == "live" && !streamersOnline.includes(stream)) {
+                    streamersOnline.push(stream);
                 }
             });
         } else {
             cursorPosition = "";
         }
+    }
+
+    for (const streamer of streamersOnline) {
+        streamer["thumbnail_url"] = streamer["thumbnail_url"].replace("{width}", "1920").replace("{height}", "1080");
     }
 
     return streamersOnline;
@@ -153,8 +157,114 @@ export const twitchCheckProfile = async (streamer: string) => {
     const json = await response.json();
 
     if (json["data"] && json["data"].length > 0) {
-        return true;
+        return json;
     }
 
-    return false;
+    return null;
+}
+    
+
+export const twitchGetProfile = async (streamer: string, live_only?: boolean) => {
+    await twitchTimeoutCheck();
+
+    const response = await fetch(`https://api.twitch.tv/helix/channels?query=${streamer}${live_only ? "&live_only=true" : ""}`, {
+        headers: {
+            "Authorization": `Bearer ${twitchBarer}`,
+            "Client-Id":  clientId
+        }
+    });
+
+    const json = await response.json();
+
+    if (json["data"] && json["data"].length > 0) {
+        return json["data"][0];
+    }
+}
+
+export const twitchGetCategory = async (category_name: string) => {
+    await twitchTimeoutCheck();
+
+    const response = await fetch(`https://api.twitch.tv/helix/search/categories?query=${category_name}&first=10`, {
+        headers: {
+            "Authorization": `Bearer ${twitchBarer}`,
+            "Client-Id":  clientId
+        }
+    });
+
+    const json = await response.json();
+
+    if (json["data"] && json["data"].length > 0) {
+        for (const category of json["data"]) {
+
+            if (category["name"].toLowerCase() == category_name.toLowerCase()) {
+                category["box_art_url"] = category["box_art_url"].replace("52x", "520x").replace("x72", "x720");
+
+                return category;
+            }
+        }
+    }
+
+    return null;
+}
+
+export const twitchGetCategories = async (gameIds: string[]) => {
+    await twitchTimeoutCheck();
+
+    let response = await fetch(`https://api.twitch.tv/helix/streams?first=10&game_id=${gameIds.join("&game_id=")}`, {
+        headers: {
+            "Authorization": `Bearer ${twitchBarer}`,
+            "Client-Id":  clientId
+        }
+    });
+
+    let cursorPosition = "";
+    const streamers: any[] = [];
+    const streamerNames: string[] = [];
+
+    let json = await response.json();
+
+    if (json["data"] && json["data"].length > 0) {
+        if (json["pagination"]) {
+            cursorPosition = json["pagination"]["cursor"];
+        }
+
+        json["data"].forEach((stream: any) => {
+            if (stream["type"] == "live" && !streamerNames.includes(stream["user_name"])) {
+                streamers.push(stream);
+                streamerNames.push(stream["user_name"]);
+            }
+        });
+    }
+
+    while (cursorPosition != "") {
+        response = await fetch(`https://api.twitch.tv/helix/streams?first=10&game_id=${gameIds.join("&game_id=")}&after=${cursorPosition}`, {
+            headers: {
+                "Authorization": `Bearer ${twitchBarer}`,
+                "Client-Id":  clientId
+            }
+        });
+
+        json = await response.json();
+
+        if (json["data"] && json["data"].length > 0) {
+            if (json["pagination"]) {
+                cursorPosition = json["pagination"]["cursor"];
+            }
+
+            json["data"].forEach((stream: any) => {
+                if (stream["type"] == "live" && !streamerNames.includes(stream["user_name"])) {
+                    streamers.push(stream);
+                    streamerNames.push(stream["user_name"]);
+                }
+            });
+        } else {
+            cursorPosition = "";
+        }
+    }
+
+    for (const streamer of streamers) {
+        streamer["thumbnail_url"] = streamer["thumbnail_url"].replace("{width}", "1920").replace("{height}", "1080");
+    }
+
+    return streamers;
 }

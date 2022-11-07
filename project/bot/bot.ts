@@ -1,5 +1,7 @@
-import { startBot } from "../deps.ts";
+import { startBot, ensureFileSync } from "../deps.ts";
 import { botAmethyst, botClient } from "./deps.ts";
+
+// ensureFileSync("./bot/configuration/config.json"); // I would much rather just throw an error.
 
 const working = "./project/bot/";
 

@@ -78,8 +78,6 @@ export const options: CommandOptions = {
                 const streamer = await twitchCheckProfile(options[0].value as string);
 
                 if (!streamer) {
-                    console.log(streamer)
-
                     embed.setColor("#FF0000");
                     embed.setDescription("This streamer does not exist!");
                     embed.setTitle("Error");

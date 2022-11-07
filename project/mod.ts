@@ -1,3 +1,3 @@
-import { } from "./bot/bot.ts";
+await import("./bot/bot.ts");
 
 console.log("Module ran!");
